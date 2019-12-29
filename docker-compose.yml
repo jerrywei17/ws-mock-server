@@ -1,0 +1,61 @@
+version: '2'
+
+services:
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mock-backup-data:/data/db
+    networks:
+      - mock-network
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - mock-redis-data:/data
+    networks:
+      - mock-network
+  server:    
+    build: ./server
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - mock-network
+    env_file:
+      - ./.env
+    volumes:
+      - ./server/src:/usr/src/app/src
+    ports:
+      -  "5000:5000"
+      -  "9000:9000"
+    command: yarn run start
+  client:
+    build: ./client
+    environment:
+      - HOST=/api
+      - WS_HOST=/ws
+    volumes:
+      - ./nginx/client-dist:/usr/src/app/dist
+    command: sh -c "yarn run build"
+  nginx:
+    restart: always
+    image: nginx:latest
+    depends_on:
+    - server
+    networks:
+      - mock-network
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/client-dist:/usr/src/app/client
+    ports:
+      - 3000:3000
+networks:
+  mock-network:
+    driver: bridge
+
+volumes:
+  mock-backup-data:  # db
+  mock-redis-data:  # cache
